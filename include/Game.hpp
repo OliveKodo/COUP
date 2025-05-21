@@ -1,37 +1,33 @@
 #pragma once
-
-#include <vector>
 #include <string>
+#include <vector>
 #include <memory>
-#include <cstdlib> // For random role assignment
-#include <ctime>   // For random seed
-#include "Player.hpp"
 
 namespace coup {
-
-// Forward declarations to avoid circular dependencies
-class Governor;
-class Spy;
-class Baron;
-class General;
-class Judge;
-class Merchant;
+// Forward declaration
+class Player;
 
 class Game {
+public:
+    // Structure to represent a pending action
+    struct PendingAction {
+        std::string playerName;
+        std::string actionType;
+        std::shared_ptr<Player> target;
+        std::shared_ptr<Player> victim;
+        
+        // Constructor with all parameters
+        PendingAction(const std::string& name, const std::string& type, 
+                      std::shared_ptr<Player> t = nullptr, 
+                      std::shared_ptr<Player> v = nullptr)
+            : playerName(name), actionType(type), target(t), victim(v) {}
+    };
+    
 private:
     std::vector<std::shared_ptr<Player>> _players;
     int _currentTurn;
-    int _kupah; // The central treasury of coins
+    int _bank;
     bool _gameStarted;
-    
-    // For handling "real-time" blocking actions
-    struct PendingAction {
-        std::string playerName;
-        std::string actionType; // "tax", "bribe", "coup", etc.
-        std::shared_ptr<Player> target; // For actions with targets
-        std::shared_ptr<Player> victim; // For coup blocking
-    };
-    
     std::vector<PendingAction> _pendingActions;
     
 public:
@@ -39,34 +35,33 @@ public:
     
     // Player management
     void addPlayer(std::shared_ptr<Player> player);
-    std::shared_ptr<Player> addPlayerWithRandomRole(const std::string& name);
     void removePlayer(const std::string& name);
     std::shared_ptr<Player> getPlayer(const std::string& name);
     std::shared_ptr<Player> getCurrentPlayer();
     
-    // Required methods from the assignment
+    // Game state and turn management
     std::string turn() const;
     std::vector<std::string> players() const;
     std::string winner() const;
-    
-    // Game management
     void startGame();
     bool isGameOver() const;
     void nextTurn();
     
-    // Treasury management
-    int getKupah() const;
-    void removeFromKupah(int amount);
-    void addToKupah(int amount);
+    // Bank operations
+    int getBank() const;
+    void removeFromBank(int amount);
+    void addToBank(int amount);
     
-    // Helper methods
+    // Turn checking
     bool isPlayerTurn(const std::string& playerName) const;
     int countActivePlayers() const;
     
-    // Methods to manage pending actions for "real-time" blocking
+    // Pending actions management
+    void addPendingAction(const std::string& playerName, const std::string& actionType);
     void addPendingAction(const std::string& playerName, const std::string& actionType, 
-                          std::shared_ptr<Player> target = nullptr,
-                          std::shared_ptr<Player> victim = nullptr);
+                         std::shared_ptr<Player> target);
+    void addPendingAction(const std::string& playerName, const std::string& actionType, 
+                         std::shared_ptr<Player> target, std::shared_ptr<Player> victim);
     bool hasPendingAction(const std::string& playerName, const std::string& actionType) const;
     void clearPendingAction(const std::string& playerName, const std::string& actionType);
     void clearAllPendingActions(const std::string& playerName);

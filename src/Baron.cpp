@@ -1,45 +1,56 @@
 #include "../include/Baron.hpp"
 #include "../include/Game.hpp"
 #include "../include/Exceptions.hpp"
+#include <iostream>
 
 namespace coup {
 
-Baron::Baron(Game& game, const std::string& name) 
-    : Player(game, name) {
-}
+Baron::Baron(Game& game, const std::string& name)
+    : Player(game, name) {}
 
 void Baron::invest() {
-    // Check if it's player's turn
+    // Check if it's the Baron's turn
     if (!_game->isPlayerTurn(_name)) {
         throw NotYourTurnException();
     }
     
-    // Check if player has enough coins
+    // Check if Baron has enough coins to invest
     if (_coins < 3) {
-        throw NotEnoughCoinsException("Investment requires 3 coins!");
+        throw NotEnoughCoinsException("Baron needs 3 coins to invest!");
     }
     
-    // Check if player has 10+ coins (must coup)
+    // Check if Baron must coup (10+ coins)
     if (mustCoup()) {
         throw TooManyCoinsException();
     }
     
-    // Pay 3 coins and get 6 in return
+    // Pay 3 coins for the investment
     _coins -= 3;
-    _game->addToKupah(3);
+    _game->addToBank(3);
+    
+    // Get 6 coins in return (profit of 3 coins)
+    _game->removeFromBank(6);
     _coins += 6;
     
-    // Register this action as pending
-    _game->addPendingAction(_name, "invest");
+    // Add a pending action to track this investment
+    _game->addPendingAction(_name, "invest", createSafePtr(this), nullptr);
     
-    // Move to next player's turn
+    // End the Baron's turn
     _game->nextTurn();
+    
+    std::cout << "Baron " << _name << " invested 3 coins and received 6 in return!" << std::endl;
 }
 
 void Baron::onSanctioned(Player& by) {
-    // When Baron is sanctioned, he gets 1 coin as compensation
+    // Base sanction behavior
     Player::onSanctioned(by);
+    
+    // Baron's special ability: get 1 coin compensation when sanctioned
     _coins += 1;
+    _game->removeFromBank(1);
+    
+    std::cout << "Baron " << _name << " received 1 coin compensation after being sanctioned by "
+              << by.getName() << "!" << std::endl;
 }
 
 } // namespace coup

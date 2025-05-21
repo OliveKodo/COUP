@@ -5,36 +5,27 @@
 
 namespace coup {
 
-Spy::Spy(Game& game, const std::string& name) 
-    : Player(game, name) {
-}
+Spy::Spy(Game& game, const std::string& name)
+    : Player(game, name), lastTargetName("") {}
 
 void Spy::spyOn(Player& target) {
-    // This doesn't count as an action, so no turn checks
-    // Simply print out the target's coins (in a real implementation, you might want to return this value)
-    std::cout << target.getName() << " has " << target.coins() << " coins." << std::endl;
+    // Spy ability: reveal target's coin count
+    std::cout << "Spy " << _name << " spied on " << target.getName()
+              << " and discovered they have " << target.coins() << " coins." << std::endl;
     
-    // Prevent target from arresting in their next turn
-    _game->addPendingAction(target.getName(), "spied_on");
+    lastTargetName = target.getName();
+    
+    // Register a pending action to block arrest
+    _game->addPendingAction(_name, "block_arrest", createSafePtr(&target), nullptr);
 }
 
 void Spy::undo(Player& target) {
-    // Check if there's an arrest to undo
-    if (_game->hasPendingAction(target.getName(), "arrest") && canUndoArrest()) {
-        // Get the arrested player
-        auto action = _game->getPendingAction(target.getName(), "arrest");
-        Player* arrestedPlayer = action.target.get();
+    if (target.getName() == lastTargetName) {
+        std::cout << "Spy prevents " << target.getName() << " from arresting this turn." << std::endl;
         
-        // Undo the arrest (return the coin)
-        if (arrestedPlayer) {
-            target.removeCoins(1);
-            arrestedPlayer->addCoins(1);
-        }
-        
-        _game->clearPendingAction(target.getName(), "arrest");
+        _game->clearPendingAction(_name, "block_arrest");
     } else {
-        // Call base class undo for other actions
-        Player::undo(target);
+        throw IllegalMoveException("No valid target to undo arrest for.");
     }
 }
 

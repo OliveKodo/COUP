@@ -1,78 +1,83 @@
-# Compiler and flags
+# Compiler
 CXX = g++
-CXXFLAGS = -std=c++2a -Wall -Wextra -Werror -g
-INCLUDE = -Iinclude
+CXXFLAGS = -std=c++2a -Wall -Wextra -Werror -g -Iinclude -Iimgui -Iimgui/backends
 
 # Directories
 SRC_DIR = src
 OBJ_DIR = obj
-INCLUDE_DIR = include
+GUI_DIR = gui
 TEST_DIR = test
+IMGUI_DIR = imgui
+
+# Make sure directories exist
+$(shell mkdir -p $(OBJ_DIR))
 
 # Source files
-CPP_FILES = $(wildcard $(SRC_DIR)/*.cpp)
-MAIN_SRC = $(TEST_DIR)/Main.cpp
-TEST_SRC = $(TEST_DIR)/Test.cpp
+MAIN_SRC = test/Main.cpp # Correct path to your Main.cpp
+CLASS_SRCS = $(filter-out $(MAIN_SRC), $(wildcard $(SRC_DIR)/*.cpp))
+CLASS_OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(CLASS_SRCS))
+MAIN_OBJ = $(OBJ_DIR)/Main.o # Note: capitalized 'M' in Main.o
 
-# Object files
-OBJ_FILES = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(CPP_FILES))
-MAIN_OBJ = $(OBJ_DIR)/Main_test.o  # Renamed to avoid conflict
-TEST_OBJ = $(OBJ_DIR)/Test.o
+# ImGui sources
+IMGUI_SOURCES = \
+	$(IMGUI_DIR)/imgui.cpp \
+	$(IMGUI_DIR)/imgui_draw.cpp \
+	$(IMGUI_DIR)/imgui_tables.cpp \
+	$(IMGUI_DIR)/imgui_widgets.cpp \
+	$(IMGUI_DIR)/imgui_demo.cpp \
+	$(IMGUI_DIR)/backends/imgui_impl_glfw.cpp \
+	$(IMGUI_DIR)/backends/imgui_impl_opengl3.cpp
+IMGUI_OBJECTS = $(patsubst %.cpp, %.o, $(IMGUI_SOURCES))
 
-# Executables
-MAIN_EXEC = Main
-TEST_EXEC = test
+# Libraries
+LDLIBS = -lglfw -lGL -ldl -lpthread
 
-# Default target
-all: $(MAIN_EXEC) $(TEST_EXEC)
+# Main targets
+.PHONY: all clean test valgrind Main
 
-# Main executable
-$(MAIN_EXEC): $(OBJ_FILES) $(MAIN_OBJ)
-	$(CXX) $(CXXFLAGS) $^ -o $@
+all: Main TestExec CoupGUI
+
+# Main executable - explicitly include Main.o
+Main: $(MAIN_OBJ) $(CLASS_OBJS)
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDLIBS)
+	@echo "Main built successfully"
 
 # Test executable
-$(TEST_EXEC): $(OBJ_FILES) $(TEST_OBJ)
-	$(CXX) $(CXXFLAGS) $^ -o $@
+TestExec: $(CLASS_OBJS) $(OBJ_DIR)/Test.o
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDLIBS)
+	chmod +x $@
 
-# Rule for Main.cpp in test directory
+# GUI executable
+GUI_SOURCE = $(GUI_DIR)/CoupImGui.cpp
+CoupGUI: $(CLASS_OBJS) $(IMGUI_OBJECTS) $(GUI_SOURCE)
+	$(CXX) $(CXXFLAGS) $(GUI_SOURCE) $(CLASS_OBJS) $(IMGUI_OBJECTS) -o $@ $(LDLIBS)
+
+# Explicitly compile Main.cpp
 $(MAIN_OBJ): $(MAIN_SRC)
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Rule for normal object files
+# Compile source files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Special rule for Test.cpp
-$(TEST_OBJ): $(TEST_SRC)
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
+# Compile test files
+$(OBJ_DIR)/Test.o: $(TEST_DIR)/Test.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Run main program
-.PHONY: run_main
-run_main: $(MAIN_EXEC)
-	./$(MAIN_EXEC)
+# Compile ImGui sources
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Alias for the assignment's requirement
-.PHONY: Main
-Main: run_main
+# Run targets
+test: TestExec
+	./TestExec
 
-# Run tests
-.PHONY: run_test
-run_test: $(TEST_EXEC)
-	./$(TEST_EXEC)
-
-# Alias for the assignment's requirement
-.PHONY: test
-test: run_test
-
-# Run valgrind
-.PHONY: valgrind
-valgrind: $(TEST_EXEC)
-	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(TEST_EXEC)
+# Valgrind for memory check
+valgrind: TestExec
+	valgrind --leak-check=full --error-exitcode=1 ./TestExec
 
 # Clean
-.PHONY: clean
 clean:
-	rm -rf $(OBJ_DIR) $(MAIN_EXEC) $(TEST_EXEC)
+	rm -f Main TestExec CoupGUI
+	rm -f $(OBJ_DIR)/*.o
+	rm -f $(IMGUI_OBJECTS)

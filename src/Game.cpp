@@ -1,175 +1,74 @@
 #include "../include/Game.hpp"
+#include "../include/Player.hpp" // Include Player.hpp before using Player methods
 #include "../include/Exceptions.hpp"
-#include "../include/Governor.hpp"
-#include "../include/Spy.hpp"
-#include "../include/Baron.hpp"
-#include "../include/General.hpp"
-#include "../include/Judge.hpp"
-#include "../include/Merchant.hpp"
 #include <algorithm>
-#include <random>
-#include <chrono>
-#include <iostream>  // For debugging
+#include <iostream>
 
 namespace coup {
 
-Game::Game() : _currentTurn(0), _kupah(0), _gameStarted(false) {
-    // Seed the random number generator
-    std::srand(static_cast<unsigned int>(std::time(nullptr)));
-}
+Game::Game() : _currentTurn(0), _bank(100), _gameStarted(false) {}
 
 void Game::addPlayer(std::shared_ptr<Player> player) {
-    // Check if game has already started
-    if (_gameStarted) {
-        throw GameException("Cannot add player after game has started!");
-    }
-    
-    // Check if we already have max players (6)
-    if (_players.size() >= 6) {
-        throw TooManyPlayersException();
-    }
-    
-    // Check if player with this name already exists
-    for (const auto& p : _players) {
-        if (p->getName() == player->getName()) {
+    if (_gameStarted) throw GameException("Cannot add player after game has started!");
+    if (_players.size() >= 6) throw TooManyPlayersException();
+    for (const auto& p : _players)
+        if (p->getName() == player->getName())
             throw PlayerAlreadyInGameException();
-        }
-    }
-    
-    // Add the player to the game
     _players.push_back(player);
-    
-    // Debug print
-    std::cout << "Added player: " << player->getName() << " (Total: " << _players.size() << ")" << std::endl;
-}
-
-std::shared_ptr<Player> Game::addPlayerWithRandomRole(const std::string& name) {
-    // Generate random number between 0 and 5
-    int roleIndex = std::rand() % 6;
-    
-    std::shared_ptr<Player> player;
-    
-    switch (roleIndex) {
-        case 0:
-            player = std::make_shared<Governor>(*this, name);
-            break;
-        case 1:
-            player = std::make_shared<Spy>(*this, name);
-            break;
-        case 2:
-            player = std::make_shared<Baron>(*this, name);
-            break;
-        case 3:
-            player = std::make_shared<General>(*this, name);
-            break;
-        case 4:
-            player = std::make_shared<Judge>(*this, name);
-            break;
-        case 5:
-            player = std::make_shared<Merchant>(*this, name);
-            break;
-        default:
-            player = std::make_shared<Governor>(*this, name); // Fallback
-    }
-    
-    addPlayer(player);
-    return player;
+    std::cout << "Added player: " << player->getName() << "\n";
 }
 
 void Game::removePlayer(const std::string& name) {
-    auto it = std::find_if(_players.begin(), _players.end(), 
-                         [&name](const std::shared_ptr<Player>& p) { 
-                             return p->getName() == name; 
-                         });
-    
-    if (it == _players.end()) {
-        throw PlayerNotFoundException();
-    }
-    
+    auto it = std::find_if(_players.begin(), _players.end(), [&](auto& p){ return p->getName() == name; });
+    if (it == _players.end()) throw PlayerNotFoundException();
     (*it)->setActive(false);
 }
 
 std::shared_ptr<Player> Game::getPlayer(const std::string& name) {
-    auto it = std::find_if(_players.begin(), _players.end(), 
-                         [&name](const std::shared_ptr<Player>& p) { 
-                             return p->getName() == name; 
-                         });
-    
-    if (it == _players.end()) {
-        throw PlayerNotFoundException();
-    }
-    
-    return *it;
+    for (auto& p : _players)
+        if (p->getName() == name)
+            return p;
+    throw PlayerNotFoundException();
 }
 
 std::shared_ptr<Player> Game::getCurrentPlayer() {
-    if (_players.empty()) {
-        throw GameException("No players in the game!");
-    }
-    
-    return _players[static_cast<size_t>(_currentTurn)];
+    if (_players.empty()) throw GameException("No players in the game!");
+    return _players.at(static_cast<size_t>(_currentTurn));
 }
 
 std::string Game::turn() const {
-    if (_players.empty()) {
-        throw GameException("No players in the game!");
-    }
-    
-    // Return the name of the current active player
-    return _players[static_cast<size_t>(_currentTurn)]->getName();
+    if (_players.empty()) throw GameException("No players in the game!");
+    return _players.at(static_cast<size_t>(_currentTurn))->getName();
 }
 
 std::vector<std::string> Game::players() const {
-    // Debug print
-    std::cout << "Number of players in game: " << _players.size() << std::endl;
-    
-    std::vector<std::string> result;
-    
-    for (const auto& player : _players) {
-        if (player->isActive()) {
-            result.push_back(player->getName());
-        }
-    }
-    
-    return result;
+    std::vector<std::string> res;
+    for (const auto& p : _players)
+        if (p->isActive()) res.push_back(p->getName());
+    return res;
 }
 
 std::string Game::winner() const {
-    // Check if game is over (only one active player)
-    if (countActivePlayers() != 1) {
-        throw GameStillRunningException();
-    }
-    
-    // Find the active player
-    for (const auto& player : _players) {
-        if (player->isActive()) {
-            return player->getName();
-        }
-    }
-    
-    // Should not get here if countActivePlayers() == 1
+    if (countActivePlayers() != 1) throw GameStillRunningException();
+    for (const auto& p : _players)
+        if (p->isActive()) return p->getName();
     throw GameException("No winner found!");
 }
 
 void Game::startGame() {
-    if (_players.size() < 2) {
-        throw GameException("Need at least 2 players to start!");
-    }
-    
+    if (_players.size() < 2) throw GameException("Need at least 2 players to start!");
     _gameStarted = true;
     _currentTurn = 0;
     
-    // Initialize the kupah with coins (e.g., 50 coins)
-    _kupah = 50;
-    
-    // Make sure the first player is active
+    // Fix: Add explicit cast to avoid signed/unsigned comparison
     while (static_cast<size_t>(_currentTurn) < _players.size() && 
            !_players[static_cast<size_t>(_currentTurn)]->isActive()) {
         _currentTurn++;
     }
     
+    // Fix: Add explicit cast to avoid signed/unsigned comparison
     if (static_cast<size_t>(_currentTurn) >= _players.size()) {
-        throw GameException("No active players to start the game!");
+        throw GameException("No active players to start!");
     }
 }
 
@@ -179,88 +78,76 @@ bool Game::isGameOver() const {
 
 void Game::nextTurn() {
     if (isGameOver()) {
-        throw GameOverException();
+        if (countActivePlayers() == 0) throw GameOverException();
+        for (size_t i = 0; i < _players.size(); ++i)
+            if (_players[i]->isActive()) { _currentTurn = static_cast<int>(i); return; }
     }
+
+    int count = 0;
+    // Fix: Remove unused variable
+    // size_t start = _currentTurn; 
     
-    // Find the next active player
     do {
         _currentTurn = (_currentTurn + 1) % static_cast<int>(_players.size());
+        ++count;
+        
+        // Fix: Add explicit cast to avoid signed/unsigned comparison
+        if (static_cast<size_t>(count) > _players.size()) {
+            throw GameException("No active players remaining!");
+        }
     } while (!_players[static_cast<size_t>(_currentTurn)]->isActive());
     
-    // Start the player's turn (for any start-of-turn effects)
     _players[static_cast<size_t>(_currentTurn)]->startTurn();
 }
 
-int Game::getKupah() const {
-    return _kupah;
+int Game::getBank() const { return _bank; }
+void Game::removeFromBank(int amount) {
+    if (_bank < amount) throw GameException("Not enough coins in bank!");
+    _bank -= amount;
 }
+void Game::addToBank(int amount) { _bank += amount; }
 
-void Game::removeFromKupah(int amount) {
-    if (_kupah < amount) {
-        throw GameException("Not enough coins in the kupah!");
-    }
-    
-    _kupah -= amount;
-}
-
-void Game::addToKupah(int amount) {
-    _kupah += amount;
-}
-
-bool Game::isPlayerTurn(const std::string& playerName) const {
-    if (_players.empty() || static_cast<size_t>(_currentTurn) >= _players.size()) {
-        return false;
-    }
-    
-    return _players[static_cast<size_t>(_currentTurn)]->getName() == playerName;
+bool Game::isPlayerTurn(const std::string& name) const {
+    return !_players.empty() && _players[static_cast<size_t>(_currentTurn)]->getName() == name;
 }
 
 int Game::countActivePlayers() const {
-    int count = 0;
-    
-    for (const auto& player : _players) {
-        if (player->isActive()) {
-            count++;
-        }
-    }
-    
-    return count;
+    return std::count_if(_players.begin(), _players.end(), [](auto& p) { return p->isActive(); });
 }
 
-// Methods for managing pending actions
+// Add the missing overloads of addPendingAction
+void Game::addPendingAction(const std::string& playerName, const std::string& actionType) {
+    _pendingActions.push_back({playerName, actionType, nullptr, nullptr});
+}
 
-void Game::addPendingAction(const std::string& playerName, const std::string& actionType, 
-                           std::shared_ptr<Player> target, std::shared_ptr<Player> victim) {
+void Game::addPendingAction(const std::string& playerName, const std::string& actionType,
+                           std::shared_ptr<Player> target) {
+    _pendingActions.push_back({playerName, actionType, target, nullptr});
+}
+
+void Game::addPendingAction(const std::string& playerName, const std::string& actionType,
+                            std::shared_ptr<Player> target, std::shared_ptr<Player> victim) {
     _pendingActions.push_back({playerName, actionType, target, victim});
 }
 
 bool Game::hasPendingAction(const std::string& playerName, const std::string& actionType) const {
-    for (const auto& action : _pendingActions) {
-        if (action.playerName == playerName && action.actionType == actionType) {
-            return true;
-        }
-    }
+    for (const auto& act : _pendingActions)
+        if (act.playerName == playerName && act.actionType == actionType) return true;
     return false;
 }
 
 void Game::clearPendingAction(const std::string& playerName, const std::string& actionType) {
     _pendingActions.erase(
         std::remove_if(_pendingActions.begin(), _pendingActions.end(),
-                      [&](const PendingAction& action) { 
-                          return action.playerName == playerName && action.actionType == actionType; 
-                      }),
-        _pendingActions.end()
-    );
+            [&](const auto& a) { return a.playerName == playerName && a.actionType == actionType; }),
+        _pendingActions.end());
 }
 
 void Game::clearAllPendingActions(const std::string& playerName) {
     _pendingActions.erase(
         std::remove_if(_pendingActions.begin(), _pendingActions.end(),
-                      [&](const PendingAction& action) { 
-                          return action.playerName == playerName; 
-                      }),
-        _pendingActions.end()
-    );
+            [&](const auto& a) { return a.playerName == playerName; }),
+        _pendingActions.end());
 }
 
 std::vector<Game::PendingAction> Game::getPendingActions() const {
@@ -268,13 +155,9 @@ std::vector<Game::PendingAction> Game::getPendingActions() const {
 }
 
 Game::PendingAction Game::getPendingAction(const std::string& playerName, const std::string& actionType) const {
-    for (const auto& action : _pendingActions) {
-        if (action.playerName == playerName && action.actionType == actionType) {
-            return action;
-        }
-    }
-    
-    throw GameException("No pending action found!");
+    for (const auto& act : _pendingActions)
+        if (act.playerName == playerName && act.actionType == actionType) return act;
+    throw GameException("No such pending action");
 }
 
 } // namespace coup
