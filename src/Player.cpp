@@ -132,7 +132,7 @@ bool Player::canUndoArrest() const { return false; }
 
 void Player::startTurn() {
     if (mustCoup()) std::cout << "You have 10+ coins and must perform a coup this turn!" << std::endl;
-    if (_underSanction) setSanction(false);
+    if (_underSanction) setSanction(false); 
 }
 
 } // namespace coup

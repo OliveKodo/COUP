@@ -15,4 +15,4 @@ public:
     void onSanctioned(Player& by) override; // Get 1 coin compensation when sanctioned
 };
 
-} // namespace coup
+} // namespace coup 

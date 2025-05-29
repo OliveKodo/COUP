@@ -48,6 +48,8 @@ void Baron::onSanctioned(Player& by) {
     // Baron's special ability: get 1 coin compensation when sanctioned
     _coins += 1;
     _game->removeFromBank(1);
+    _game->addPendingAction(_name, "compensation", createSafePtr(this), nullptr);
+    
     
     std::cout << "Baron " << _name << " received 1 coin compensation after being sanctioned by "
               << by.getName() << "!" << std::endl;
