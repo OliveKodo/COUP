@@ -2,6 +2,7 @@
 #include "../include/Game.hpp"
 #include "../include/Exceptions.hpp"
 #include <iostream>
+//tomergal40@gmail.com
 
 namespace coup {
 

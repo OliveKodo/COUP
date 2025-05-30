@@ -1,3 +1,4 @@
+#tomergal40@gmail.com
 # Compiler
 CXX = g++
 CXXFLAGS = -std=c++2a -Wall -Wextra -Werror -g -Iinclude -Iimgui -Iimgui/backends
@@ -13,10 +14,10 @@ IMGUI_DIR = imgui
 $(shell mkdir -p $(OBJ_DIR))
 
 # Source files
-MAIN_SRC = test/Main.cpp # Correct path to your Main.cpp
+MAIN_SRC = test/Main.cpp # Full demo Main.cpp
 CLASS_SRCS = $(filter-out $(MAIN_SRC), $(wildcard $(SRC_DIR)/*.cpp))
 CLASS_OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(CLASS_SRCS))
-MAIN_OBJ = $(OBJ_DIR)/Main.o # Note: capitalized 'M' in Main.o
+MAIN_OBJ = $(OBJ_DIR)/Main.o
 
 # ImGui sources
 IMGUI_SOURCES = \
@@ -27,6 +28,7 @@ IMGUI_SOURCES = \
 	$(IMGUI_DIR)/imgui_demo.cpp \
 	$(IMGUI_DIR)/backends/imgui_impl_glfw.cpp \
 	$(IMGUI_DIR)/backends/imgui_impl_opengl3.cpp
+
 IMGUI_OBJECTS = $(patsubst %.cpp, %.o, $(IMGUI_SOURCES))
 
 # Libraries
@@ -35,49 +37,57 @@ LDLIBS = -lglfw -lGL -ldl -lpthread
 # Main targets
 .PHONY: all clean test valgrind Main
 
-all: Main TestExec CoupGUI
+all: MainExec TestExec CoupGUI
 
-# Main executable - explicitly include Main.o
-Main: $(MAIN_OBJ) $(CLASS_OBJS)
+# Build Main executable
+MainExec: $(MAIN_OBJ) $(CLASS_OBJS)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDLIBS)
-	@echo "Main built successfully"
+	@echo "Main executable built successfully"
 
-# Test executable
+# Run Main demo 
+Main: MainExec
+	@echo "Running Coup Game Demonstration..."
+	./MainExec
+
+# Build Test executable
 TestExec: $(CLASS_OBJS) $(OBJ_DIR)/Test.o
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDLIBS)
 	chmod +x $@
+	@echo "Test executable built successfully"
+
+# Run unit tests 
+test: TestExec
+	@echo "Running unit tests..."
+	./TestExec
+
+# Valgrind memory check 
+valgrind: TestExec
+	@echo "Running valgrind memory check..."
+	valgrind --leak-check=full --error-exitcode=1 ./TestExec
 
 # GUI executable
 GUI_SOURCE = $(GUI_DIR)/CoupImGui.cpp
 CoupGUI: $(CLASS_OBJS) $(IMGUI_OBJECTS) $(GUI_SOURCE)
 	$(CXX) $(CXXFLAGS) $(GUI_SOURCE) $(CLASS_OBJS) $(IMGUI_OBJECTS) -o $@ $(LDLIBS)
+	@echo "GUI executable built successfully"
 
-# Explicitly compile Main.cpp
+# Compilation rules
 $(MAIN_OBJ): $(MAIN_SRC)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Compile source files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Compile test files
 $(OBJ_DIR)/Test.o: $(TEST_DIR)/Test.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Compile ImGui sources
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Run targets
-test: TestExec
-	./TestExec
-
-# Valgrind for memory check
-valgrind: TestExec
-	valgrind --leak-check=full --error-exitcode=1 ./TestExec
-
-# Clean
+# Clean 
 clean:
-	rm -f Main TestExec CoupGUI
+	@echo "Cleaning build files..."
+	rm -f MainExec TestExec CoupGUI
 	rm -f $(OBJ_DIR)/*.o
 	rm -f $(IMGUI_OBJECTS)
+	@echo "Clean completed"

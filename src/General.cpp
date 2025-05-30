@@ -1,3 +1,4 @@
+//tomergal40@gmail.com
 #include "../include/General.hpp"
 #include "../include/Game.hpp"
 #include "../include/Exceptions.hpp"
