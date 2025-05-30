@@ -1,4 +1,4 @@
-// Fixed GUI version for Coup game with full logic, random role assignment, and in-game actions
+//tomergal40@gmail.com
 
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
